@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>晚霞预报 · 图表</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #12101c; color: #e8e6f0; font-family: "Microsoft YaHei", sans-serif; }
+  header {
+    padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(120deg, #2a1240 0%, #4a1a4a 45%, #7a3a2a 100%);
+  }
+  header h1 { font-size: 21px; color: #ffd9a0; letter-spacing: 2px; }
+  header .city { color: #c9b8d8; font-size: 14px; }
+  nav { display: flex; gap: 6px; padding: 14px 32px 0; }
+  nav button {
+    background: #1e1b30; border: 1px solid #2a2740; color: #9a95b5;
+    font-size: 14px; padding: 8px 20px; cursor: pointer; border-radius: 8px 8px 0 0;
+  }
+  nav button.active { color: #ffb35c; border-color: #ffb35c; background: #262240; }
+  main { padding: 0 32px 32px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .toolbar { display: flex; gap: 8px; align-items: center; padding: 16px 0 4px; }
+  .toolbar .label { color: #9a95b5; font-size: 13px; }
+  .toolbar button {
+    background: #1e1b30; border: 1px solid #2a2740; color: #9a95b5; cursor: pointer;
+    padding: 6px 16px; border-radius: 6px; font-size: 13px;
+  }
+  .toolbar button.active { color: #ffb35c; border-color: #ffb35c; }
+  .chart { width: 100%; height: 380px; margin-top: 10px; }
+  .chart.tall { height: 320px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0; }
+  .card { background: #1e1b30; border: 1px solid #2a2740; border-radius: 10px; padding: 14px 18px; }
+  .card .k { color: #9a95b5; font-size: 13px; }
+  .card .v { font-size: 26px; font-weight: bold; color: #ffb35c; margin-top: 4px; }
+  .card .v.dim { color: #9a95b5; font-size: 16px; }
+  .card .sub { font-size: 12px; color: #6f6a88; margin-top: 4px; }
+  .panelbox { background: #1e1b30; border: 1px solid #2a2740; border-radius: 10px; padding: 14px 18px; margin-top: 14px; }
+  .panelbox h3 { font-size: 14px; color: #9a95b5; margin-bottom: 8px; }
+  .panelbox .row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #2a2740; font-size: 14px; }
+  .panelbox .row:last-child { border-bottom: none; }
+  .panelbox .s { color: #ffb35c; font-weight: bold; }
+  .note { font-size: 12px; color: #6f6a88; line-height: 1.7; margin-top: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>晚霞 / 朝霞 指数</h1>
+  <span class="city">
+    <select id="city-select" style="background:#1e1b30;color:#e8e6f0;border:1px solid #2a2740;border-radius:6px;padding:5px 10px;font-size:14px;"></select>
+    <span id="city-label" style="margin-left:10px;"></span>
+  </span>
+</header>
+<nav>
+  <button class="active" data-p="forecast">未来预报</button>
+  <button data-p="verify">实况验证</button>
+  <button data-p="season">季节分析</button>
+  <button data-p="track">追踪复盘</button>
+</nav>
+<main>
+  <div id="forecast" class="panel active">
+    <div class="toolbar">
+      <span class="label">预报天数</span>
+      <button data-days="1">1</button><button data-days="3">3</button>
+      <button data-days="5">5</button><button data-days="7" class="active">7</button>
+    </div>
+    <div class="grid">
+      <div class="chart" id="c-score"></div>
+      <div class="chart" id="c-factors"></div>
+    </div>
+  </div>
+  <div id="verify" class="panel">
+    <div class="cards" id="verify-cards"></div>
+    <div class="chart tall" id="c-verify"></div>
+    <div class="panelbox" id="verify-sat">
+      <h3>日落时刻卫星云图 (FY-4B 可见光, 中央气象台)</h3>
+      <img id="sat-img" style="max-width:100%;border-radius:8px;display:none;" alt="卫星云图">
+      <div class="note" id="sat-note"></div>
+    </div>
+    <div class="note">
+      实况分 = 用模型近实时分析场（过去 48 小时）重新计算的分数，与气象站实测非常接近。<br>
+      卫星云图是客观观测：日落时刻西边有没有云、云往哪飘，看图一目了然。
+    </div>
+  </div>
+  <div id="season" class="panel">
+    <div class="chart tall" id="c-season"></div>
+    <div class="panelbox" id="season-top"></div>
+  </div>
+  <div id="track" class="panel">
+    <div class="cards" id="track-cards"></div>
+    <div class="chart tall" id="c-track"></div>
+  </div>
+</main>
+<script>
+const ORANGE = "#ffb35c", PINK = "#ff7eb3", CYAN = "#7ec8ff", GREEN = "#7dffb3",
+      PURPLE = "#b58cff", GRAY = "#9a95b5";
+const charts = {};
+function mk(id) {
+  const c = echarts.init(document.getElementById(id));
+  charts[id] = c;
+  window.addEventListener("resize", () => c.resize());
+  return c;
+}
+const BASE = {
+  backgroundColor: "transparent",
+  textStyle: { color: "#c9c5dd" },
+  legend: { textStyle: { color: GRAY }, top: 4 },
+  grid: { left: 56, right: 56, top: 44, bottom: 34 },
+  tooltip: { trigger: "axis" },
+};
+async function get(p) { return (await fetch(p)).json(); }
+const fv = v => v == null ? "--" : v;
+let CITY = "";
+
+async function loadForecast(days) {
+  const d = await get("/api/forecast?days=" + days + "&city=" + CITY);
+  const f = d.factors;
+  mk("c-score").setOption({
+    ...BASE,
+    title: { text: "朝霞 / 晚霞 指数 (0-10)", textStyle: { fontSize: 13, color: GRAY } },
+    xAxis: { type: "category", data: d.dates, axisLabel: { color: GRAY } },
+    yAxis: { type: "value", min: 0, max: 10, splitLine: { lineStyle: { color: "#262240" } } },
+    series: [
+      { name: "朝霞", type: "bar", data: d.rise, itemStyle: { color: PINK, borderRadius: [4, 4, 0, 0] }, barGap: "15%" },
+      { name: "晚霞", type: "bar", data: d.set, itemStyle: { color: ORANGE, borderRadius: [4, 4, 0, 0] } },
+    ],
+  });
+  mk("c-factors").setOption({
+    ...BASE,
+    title: { text: "日落时段因子 (云量 %, 湿度 %, AOD)", textStyle: { fontSize: 13, color: GRAY } },
+    legend: { data: ["高云", "中云", "低云", "湿度", "AOD"] },
+    tooltip: {
+      trigger: "axis", axisPointer: { type: "shadow" },
+      formatter: p => {
+        const i = p[0].dataIndex, fac = f[i];
+        return `<b>${d.dates[i]}</b> 日落 ${d.set_time[i]} 晚霞 ${d.set[i].toFixed(1)}/10 (${d.set_grade[i]})<br>`
+          + `高云 ${fv(fac[0])}% · 中云 ${fv(fac[1])}% · 低云 ${fv(fac[2])}%<br>`
+          + `湿度 ${fv(fac[3])}% · 降水 ${fv(fac[4])}% · AOD ${fv(fac[5])}`;
+      },
+    },
+    xAxis: { type: "category", data: d.dates, axisLabel: { color: GRAY } },
+    yAxis: [{ type: "value", min: 0, max: 100, splitLine: { lineStyle: { color: "#262240" } } },
+            { type: "value", min: 0, max: 2, splitLine: { show: false } }],
+    series: [
+      { name: "高云", type: "bar", stack: "c", data: f.map(x => x[0]), itemStyle: { color: "#8fb8ff" } },
+      { name: "中云", type: "bar", stack: "c", data: f.map(x => x[1]), itemStyle: { color: "#5b7fd6" } },
+      { name: "低云", type: "bar", stack: "c", data: f.map(x => x[2]), itemStyle: { color: "#3d5570" } },
+      { name: "湿度", type: "line", data: f.map(x => x[3]), itemStyle: { color: GREEN }, smooth: true, symbol: "circle" },
+      { name: "AOD", type: "line", yAxisIndex: 1, connectNulls: false, data: f.map(x => x[5]), itemStyle: { color: PINK }, smooth: true, symbol: "circle" },
+    ],
+  });
+}
+
+async function loadVerify() {
+  const d = await get("/api/verify?city=" + CITY);
+  const rows = d.rows;
+  const card = (k, v, sub, dim) =>
+    `<div class="card"><div class="k">${k}</div><div class="v ${dim ? "dim" : ""}">${v}</div><div class="sub">${sub || ""}</div></div>`;
+  const today = rows[rows.length - 1], yday = rows[rows.length - 2];
+  const diff = (r) => {
+    if (!r || r.pred_set == null) return { v: "--", s: "未记录预报" };
+    const df = r.actual_set - r.pred_set;
+    return { v: (df > 0 ? "+" : "") + df.toFixed(1), s: df >= 1 ? "超出预期" : df <= -1 ? "不及预期" : "基本一致" };
+  };
+  document.getElementById("verify-cards").innerHTML =
+    card("今日晚霞 · 预报", today && today.pred_set != null ? today.pred_set.toFixed(1) + "/10" : "--",
+         "预报来自 17:00 快照", !today || today.pred_set == null) +
+    card("今日晚霞 · 实况", today ? today.actual_set.toFixed(1) + "/10" : "--", "近实时分析场", !today) +
+    card("今日偏差", diff(today).v, diff(today).s, false) +
+    card("昨日晚霞 · 实况", yday ? yday.actual_set.toFixed(1) + "/10" : "--",
+         yday && yday.pred_set != null ? "预报 " + yday.pred_set.toFixed(1) + "/10" : "未记录预报", !yday);
+  mk("c-verify").setOption({
+    ...BASE,
+    title: { text: "近 3 天晚霞: 预报 vs 实况", textStyle: { fontSize: 13, color: GRAY } },
+    legend: { data: ["预报 (末次快照)", "实况"] },
+    xAxis: { type: "category", data: rows.map(r => r.date), axisLabel: { color: GRAY } },
+    yAxis: { type: "value", min: 0, max: 10, splitLine: { lineStyle: { color: "#262240" } } },
+    series: [
+      { name: "预报 (末次快照)", type: "bar", data: rows.map(r => r.pred_set), itemStyle: { color: CYAN, borderRadius: [4, 4, 0, 0] }, barGap: "15%" },
+      { name: "实况", type: "bar", data: rows.map(r => r.actual_set), itemStyle: { color: ORANGE, borderRadius: [4, 4, 0, 0] } },
+    ],
+  });
+  const satEl = document.getElementById("sat-img"), noteEl = document.getElementById("sat-note");
+  if (d.sat) {
+    satEl.src = d.sat.url + "?t=" + Date.now();
+    satEl.style.display = "block";
+    noteEl.textContent = `${d.sat.date} 日落时刻云图 · 图像时间 ${d.sat.ts} · 珠海在图中央偏南`;
+  } else {
+    satEl.style.display = "none";
+    noteEl.textContent = "今天还没有卫星图。运行: python track.py sat 抓取日落时刻云图 (自动任务每天 19:30 执行)";
+  }
+}
+
+async function loadSeason() {
+  const d = await get("/api/season?city=" + CITY);
+  mk("c-season").setOption({
+    ...BASE,
+    title: { text: `季节分析 (近 5 年, 共 ${d.total_days} 天)`, textStyle: { fontSize: 13, color: GRAY } },
+    legend: { data: ["平均晚霞分", "≥8分占比"] },
+    xAxis: { type: "category", data: d.months.map(m => m.month + "月"), axisLabel: { color: GRAY } },
+    yAxis: [{ type: "value", max: 10, splitLine: { lineStyle: { color: "#262240" } } },
+            { type: "value", max: 15, splitLine: { show: false } }],
+    series: [
+      { name: "平均晚霞分", type: "bar", data: d.months.map(m => m.avg), itemStyle: { color: ORANGE, borderRadius: [4, 4, 0, 0] } },
+      { name: "≥8分占比", type: "line", yAxisIndex: 1, data: d.months.map(m => m.pct8), itemStyle: { color: CYAN }, smooth: true, symbol: "circle" },
+    ],
+  });
+  document.getElementById("season-top").innerHTML =
+    "<h3>历史最佳晚霞日 TOP 10</h3>" +
+    d.top.map(t => `<div class="row"><span>${t.date}</span><span class="s">${t.score.toFixed(1)}/10</span></div>`).join("");
+}
+
+async function loadTrack() {
+  const d = await get("/api/track?city=" + CITY);
+  const s = d.stats;
+  const card = (k, v, sub, dim) =>
+    `<div class="card"><div class="k">${k}</div><div class="v ${dim ? "dim" : ""}">${v}</div><div class="sub">${sub || ""}</div></div>`;
+  document.getElementById("track-cards").innerHTML =
+    card("对比样本", s.n + " 天", "已补实况的历史日", s.n === 0) +
+    card("首报误差 MAE", s.mae_first ?? "--", "首次记录 vs 实况") +
+    card("末报误差 MAE", s.mae_last ?? "--", "当天前最后一次 vs 实况") +
+    card("预报≥7 命中率", s.hit_rate == null ? "--" : s.hit_rate + "%", s.hit_rate == null ? "暂无数据" : `(${s.hit7}/${s.pred7} 命中: 报≥7 且实况≥6)`);
+  const rows = d.rows;
+  mk("c-track").setOption({
+    ...BASE,
+    title: { text: "预报 vs 实况 (晚霞)", textStyle: { fontSize: 13, color: GRAY } },
+    legend: { data: ["首报", "末报", "实况"] },
+    xAxis: { type: "category", data: rows.map(r => r.date), axisLabel: { color: GRAY, rotate: 30 } },
+    yAxis: { type: "value", min: 0, max: 10, splitLine: { lineStyle: { color: "#262240" } } },
+    series: [
+      { name: "首报", type: "bar", data: rows.map(r => r.first), itemStyle: { color: "#5b7fd6", borderRadius: [4, 4, 0, 0] } },
+      { name: "末报", type: "bar", data: rows.map(r => r.last), itemStyle: { color: CYAN, borderRadius: [4, 4, 0, 0] } },
+      { name: "实况", type: "bar", data: rows.map(r => r.actual), itemStyle: { color: ORANGE, borderRadius: [4, 4, 0, 0] } },
+    ],
+  });
+}
+
+document.querySelectorAll("nav button").forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll("nav button").forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    const p = b.dataset.p;
+    document.getElementById(p).classList.add("active");
+    const id = { forecast: "c-score", verify: "c-verify", season: "c-season", track: "c-track" }[p];
+    if (charts[id]) charts[id].resize();
+  };
+});
+document.querySelectorAll(".toolbar button").forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll(".toolbar button").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    loadForecast(Number(b.dataset.days));
+  };
+});
+
+(async () => {
+  const cities = (await get("/api/cities")).cities;
+  if (!cities.length) {
+    document.getElementById("city-label").textContent = "无监控城市, 先运行 track.py addcity";
+    return;
+  }
+  const sel = document.getElementById("city-select");
+  cities.forEach(c => {
+    const o = document.createElement("option");
+    o.value = c.name;
+    o.textContent = c.name;
+    sel.appendChild(o);
+  });
+  const label = document.getElementById("city-label");
+  const reload = async () => {
+    CITY = sel.value;
+    label.textContent = `(${cities.find(c => c.name === sel.value).lat}°N, ${cities.find(c => c.name === sel.value).lon}°E)`;
+    await Promise.all([loadForecast(7), loadVerify(), loadSeason(), loadTrack()]);
+  };
+  sel.onchange = reload;
+  await reload();
+})();
+</script>
+</body>
+</html>

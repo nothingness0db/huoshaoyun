@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+xiat.db
+data/
+season_cache.json
+track_log.json.old
+track_log.json
