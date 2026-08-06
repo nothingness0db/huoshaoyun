@@ -1,0 +1,42 @@
+name: huoshaoyun-daily
+
+on:
+  schedule:
+    - cron: '5 9 * * *'    # 17:05 北京时间: 记录当日 7 天预报快照
+    - cron: '35 11 * * *'  # 19:35 北京时间: 抓日落卫星云图 + 近实时实况
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 初始化城市 (默认不监控任何城市)
+        run: |
+          python track.py addcity 珠海 22.2707 113.5767
+
+      - name: 按调度执行 (09=快照, 11=卫星图+实况)
+        run: |
+          HOUR=$(date -u +%H)
+          if [ "$HOUR" = "09" ]; then
+            python track.py snap
+          elif [ "$HOUR" = "11" ]; then
+            python track.py sat
+            python track.py verify
+          fi
+
+      - name: 提交数据回仓库
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f xiat.db data/ 2>/dev/null || true
+          git commit -m "data: 每日快照 $(date -u +%Y-%m-%d)" || echo "无新数据"
+          git push origin main
