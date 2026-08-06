@@ -23,14 +23,20 @@ jobs:
         run: |
           python track.py addcity 珠海 22.2707 113.5767
 
-      - name: 按调度执行 (09=快照, 11=卫星图+实况)
+      - name: 按调度执行 (09=快照, 11=卫星图+实况, 手动=全量)
         run: |
-          HOUR=$(date -u +%H)
-          if [ "$HOUR" = "09" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             python track.py snap
-          elif [ "$HOUR" = "11" ]; then
             python track.py sat
             python track.py verify
+          else
+            HOUR=$(date -u +%H)
+            if [ "$HOUR" = "09" ]; then
+              python track.py snap
+            elif [ "$HOUR" = "11" ]; then
+              python track.py sat
+              python track.py verify
+            fi
           fi
 
       - name: 提交数据回仓库
