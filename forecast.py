@@ -25,17 +25,25 @@ HOURLY_VARS = [
 DAILY_VARS = ["sunrise", "sunset"]
 
 
+_SSL_BROKEN = False   # 本机证书链坏了时置位, 后续请求直接走不验证路径
+
+
 def fetch(url, params, timeout=30):
+    global _SSL_BROKEN
     qs = urllib.parse.urlencode(params)
     req = urllib.request.Request(f"{url}?{qs}", headers={"User-Agent": "xiat/0.1"})
     last = None
-    for attempt in range(3):
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                return json.load(r)
-        except urllib.error.URLError as e:
-            last = e
-            time.sleep(2 * (attempt + 1))          # 退避重试: 2s, 4s
+    if not _SSL_BROKEN:
+        for attempt in range(2):
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    return json.load(r)
+            except urllib.error.URLError as e:
+                last = e
+                if isinstance(e.reason, ssl.SSLError):
+                    _SSL_BROKEN = True   # 证书链坏了, 记住并直接降级
+                    break
+                time.sleep(2 * (attempt + 1))      # 网络抖动才退避重试
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
