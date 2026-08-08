@@ -94,6 +94,37 @@ def sat_city(city, date):
     print(f"[sat] {city['name']} {date} 日落 {sunset} -> {os.path.basename(path)} ({ts})")
 
 
+def metar_city(city, date):
+    """用机场 METAR 观测报算日落时刻实况分 (真观测, 对比 analysis 场)."""
+    import metar
+    icaos = metar.ICAO.get(city["name"], [])
+    from forecast import fetch
+    w = fetch("https://api.open-meteo.com/v1/forecast", {
+        "latitude": city["lat"], "longitude": city["lon"],
+        "daily": "sunset", "timezone": "auto",
+        "start_date": date, "end_date": date,
+    })
+    sunset = w["daily"]["sunset"][0]
+    icao_used = None
+    for icao in icaos:
+        factors = metar.metar_actuals(icao, [date], {date: sunset[11:16]})
+        if factors:
+            icao_used = icao
+            break
+    if not icao_used:
+        print(f"[metar] {city['name']} {date} 日落 {sunset[11:16]} 附近无观测报"
+              f" (候选机场 {icaos})")
+        return
+    high, mid, low, rh, pp, aod, ts = factors[date]
+    score = score_glow(high, mid, low, rh, pp, aod)
+    ts_local = datetime.utcfromtimestamp(ts) + timedelta(hours=8)
+    actual = db.get_actuals(city["id"]).get(date)
+    comp = f"  vs 分析场实况 {actual['set']:.1f}" if actual else ""
+    print(f"[metar] {city['name']} {date} 日落 {sunset[11:16]} ({icao_used}) "
+          f"观测时刻 {ts_local:%H:%M} 高{high}% 中{mid}% 低{low}% "
+          f"湿度{rh}% 降水{pp}%  -> METAR 实况分 {score:.1f}{comp}")
+
+
 def report_city(city):
     actuals = db.get_actuals(city["id"])
     hist = db.snap_history(city["id"])
@@ -125,7 +156,7 @@ def report_city(city):
 def main():
     ap = argparse.ArgumentParser(description="晚霞预报追踪 (SQLite)")
     ap.add_argument("cmd", choices=["cities", "addcity", "rmcity",
-                                    "snap", "verify", "sat", "report"])
+                                    "snap", "verify", "sat", "metar", "report"])
     ap.add_argument("args", nargs="*")
     ap.add_argument("--city", default=None)
     ap.add_argument("--date", default=None)
@@ -174,6 +205,9 @@ def main():
         elif args.cmd == "sat":
             date = args.date or datetime.now().strftime("%Y-%m-%d")
             sat_city(c, date)
+        elif args.cmd == "metar":
+            date = args.date or datetime.now().strftime("%Y-%m-%d")
+            metar_city(c, date)
         elif args.cmd == "report":
             report_city(c)
 

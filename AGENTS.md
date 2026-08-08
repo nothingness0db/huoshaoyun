@@ -33,7 +33,8 @@
 | `forecast.py` | 预报拉取 + 评分 | `get_forecast`, `get_verify`, `score_glow`, `build_rows`, `windows_for` |
 | `season.py` | 5 年季节分析 (60 次月度请求, 慢) | `analyze`, `fetch_month`, `score_day` |
 | `track.py` | CLI 主入口 | `snap_city`, `verify_city`, `sat_city`, `report_city` |
-| `sat.py` | FY-4B 抓取 | `fetch_sat` (日落时刻→UTC 15 分钟档) |
+| `sat.py` | FY-4B 抓取 | `fetch_sat` (日落时刻→UTC 15 分钟档, 按档位去重) |
+| `metar.py` | 机场 METAR 真观测 (滚动 30 天, 免费) | `fetch_metars`, `metar_actuals` (日落时刻云层/温湿/天气) |
 | `db.py` | SQLite 层 | `add_city`, `add_snapshot`, `last_preds`, `save_actual`, `save_sat` |
 | `web.py` | 图表服务 (8000 端口) | JSON API + 静态文件 |
 | `index.html` | 前端 | 4 页签: 未来预报/实况验证/季节分析/追踪复盘 |
