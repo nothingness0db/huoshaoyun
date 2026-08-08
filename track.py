@@ -89,10 +89,9 @@ def sat_city(city, date):
         "start_date": date, "end_date": date,
     })
     sunset = w["daily"]["sunset"][0][11:16]
-    out = os.path.join(sat.SAT_DIR, f"{city['name']}_{date}.jpg")
-    ts = sat.fetch_sat(date, sunset, out)
-    db.save_sat(city["id"], date, ts, out)
-    print(f"[sat] {city['name']} {date} 日落 {sunset} -> {os.path.basename(out)} ({ts})")
+    ts, path = sat.fetch_sat(date, sunset)
+    db.save_sat(city["id"], date, ts, path)
+    print(f"[sat] {city['name']} {date} 日落 {sunset} -> {os.path.basename(path)} ({ts})")
 
 
 def report_city(city):

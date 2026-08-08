@@ -80,7 +80,7 @@ python3 web.py                                   # 图表服务
 - AOD 第 6-7 天是 null, 前端显示 `--`, 评分走 None 分支, 不要试图填 0
 - 第一次跑 `season` 分析要 1-2 分钟 (60 个请求), `web.py` 里有 24h 缓存 (season_cache.json)
 - 加新脚本必须 `sys.stdout.reconfigure(encoding="utf-8")`, 否则中文乱码
-- 卫星图文件名 UTC 时间 (珠海日落 19:03 北京 = 11:03 UTC, 取 11:00 档)
+- 卫星图文件名 UTC 时间 (珠海日落 19:03 北京 = 11:03 UTC, 取 11:00 档); **按 UTC 档位去重存储** (同一时刻全国一张图, 文件名 `data/sat/yyyymmdd_HHMMutc.jpg`, 所有城市共享)
 - 改评分公式 → 快照因子都存着, 可以全量重算, 但公式版本化之前先确认
 
 ## 验证改动

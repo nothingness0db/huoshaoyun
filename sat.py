@@ -21,9 +21,13 @@ def sunset_utc_slot(local_date, sunset_hhmm):
     return utc
 
 
-def fetch_sat(local_date, sunset_hhmm, out_path):
-    """抓日落时刻卫星云图, 存到 out_path, 返回图像时间戳字符串."""
+def fetch_sat(local_date, sunset_hhmm):
+    """抓日落时刻卫星云图, 存到按 UTC 档位去重的路径 (同一时刻全国一张图, 所有城市共用).
+    已存在则直接复用. 返回 (图像时间戳, 保存路径)."""
     utc = sunset_utc_slot(local_date, sunset_hhmm)
+    out_path = os.path.join(SAT_DIR, f"{utc.strftime('%Y%m%d_%H%M')}utc.jpg")
+    if os.path.exists(out_path):
+        return utc.strftime("%Y-%m-%d %H:%M UTC"), out_path
     url = BASE.format(y=utc.strftime("%Y"), m=utc.strftime("%m"), d=utc.strftime("%d"),
                       t=utc.strftime("%Y%m%d%H%M"))
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -31,10 +35,10 @@ def fetch_sat(local_date, sunset_hhmm, out_path):
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
                 data = r.read()
-            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            os.makedirs(SAT_DIR, exist_ok=True)
             with open(out_path, "wb") as f:
                 f.write(data)
-            return utc.strftime("%Y-%m-%d %H:%M UTC")
+            return utc.strftime("%Y-%m-%d %H:%M UTC"), out_path
         except Exception:
             if attempt == 2:
                 raise

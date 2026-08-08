@@ -22,6 +22,30 @@ jobs:
       - name: 初始化城市 (默认不监控任何城市)
         run: |
           python track.py addcity 珠海 22.2707 113.5767
+          python track.py addcity 广州 23.1291 113.2644
+          python track.py addcity 深圳 22.5431 114.0579
+          python track.py addcity 佛山 23.0218 113.1219
+          python track.py addcity 东莞 23.0207 113.7518
+          python track.py addcity 中山 22.5176 113.3928
+          python track.py addcity 惠州 23.1115 114.4162
+          python track.py addcity 江门 22.5791 113.0815
+          python track.py addcity 肇庆 23.0471 112.4724
+          python track.py addcity 香港 22.3193 114.1694
+          python track.py addcity 澳门 22.1987 113.5439
+          python track.py addcity 厦门 24.4798 118.0894
+          python track.py addcity 上海 31.2304 121.4737
+          python track.py addcity 南宁 22.8170 108.3669
+          python track.py addcity 桂林 25.2736 110.2900
+          python track.py addcity 柳州 24.3264 109.4281
+          python track.py addcity 北海 21.4811 109.1200
+          python track.py addcity 梧州 23.4764 111.2790
+          python track.py addcity 玉林 22.6321 110.1797
+          python track.py addcity 北京 39.9042 116.4074
+          python track.py addcity 成都 30.5728 104.0668
+          python track.py addcity 昆明 24.8801 102.8329
+          python track.py addcity 拉萨 29.6520 91.1721
+          python track.py addcity 哈尔滨 45.8038 126.5349
+          python track.py addcity 海口 20.0444 110.1999
 
       - name: 按调度执行 (09=快照, 11=卫星图+实况, 手动=全量)
         run: |
