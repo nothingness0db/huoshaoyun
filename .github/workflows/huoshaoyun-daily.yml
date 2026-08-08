@@ -21,7 +21,9 @@ jobs:
 
       - name: 初始化城市 (默认不监控任何城市)
         run: |
-          python track.py addcity 珠海 22.2707 113.5767
+          python track.py addcity 香洲 22.2667 113.5438
+          python track.py addcity 金湾 22.1435 113.3514
+          python track.py addcity 斗门 22.2094 113.2960
           python track.py addcity 广州 23.1291 113.2644
           python track.py addcity 深圳 22.5431 114.0579
           python track.py addcity 佛山 23.0218 113.1219
