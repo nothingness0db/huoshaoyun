@@ -69,6 +69,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f xiat.db data/ 2>/dev/null || true
-          git commit -m "data: 每日快照 $(date -u +%Y-%m-%d)" || echo "无新数据"
-          git push origin main
+          git remote set-url origin git@github.com:nothingness0db/huoshaoyun.git
+          git -c core.sshCommand="ssh -F ~/.ssh/config -i ~/.ssh/huoshaoyun_deploy" add -f xiat.db data/ 2>/dev/null || true
+          git -c core.sshCommand="ssh -F ~/.ssh/config -i ~/.ssh/huoshaoyun_deploy" commit -m "data: 每日快照 $(date -u +%Y-%m-%d)" || echo "无新数据"
+          git -c core.sshCommand="ssh -F ~/.ssh/config -i ~/.ssh/huoshaoyun_deploy" push origin main
